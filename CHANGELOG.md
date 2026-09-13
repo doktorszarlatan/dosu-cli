@@ -1,3 +1,38 @@
+## [0.52.3](https://github.com/dosu-ai/dosu-cli/compare/v0.52.2...v0.52.3) (2026-09-12)
+
+
+### Bug Fixes
+
+* **mcp:** write Zed config to ~/.config/zed with Zed's remote-server shape ([#217](https://github.com/dosu-ai/dosu-cli/issues/217)) ([0d0453d](https://github.com/dosu-ai/dosu-cli/commit/0d0453dc55cab1108ba02ddd2452e90177b059e3))
+
+## [0.52.2](https://github.com/dosu-ai/dosu-cli/compare/v0.52.1...v0.52.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* **telemetry:** associate CLI events with organizations ([#207](https://github.com/dosu-ai/dosu-cli/issues/207)) ([9ea62b2](https://github.com/dosu-ai/dosu-cli/commit/9ea62b21a8a2e2b086c13b4deb475340a47cb10f))
+
+## [0.52.1](https://github.com/dosu-ai/dosu-cli/compare/v0.52.0...v0.52.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* remove retired library auto-publish setting ([#204](https://github.com/dosu-ai/dosu-cli/issues/204)) ([9f46752](https://github.com/dosu-ai/dosu-cli/commit/9f467528475411d455128a30670766edc46fff05))
+
+# [0.52.0](https://github.com/dosu-ai/dosu-cli/compare/v0.51.1...v0.52.0) (2026-09-01)
+
+
+### Features
+
+* remove suggest command ([#201](https://github.com/dosu-ai/dosu-cli/issues/201)) ([328f60d](https://github.com/dosu-ai/dosu-cli/commit/328f60dba6fb0c82db6611f2c676d94080238a99))
+
+## [0.51.1](https://github.com/dosu-ai/dosu-cli/compare/v0.51.0...v0.51.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **setup:** drop retired label settings from default deployment config ([#198](https://github.com/dosu-ai/dosu-cli/issues/198)) ([1539887](https://github.com/dosu-ai/dosu-cli/commit/15398870159b6f775ab578c8d06ecbe99dbddde7))
+
 # [0.51.0](https://github.com/dosu-ai/dosu-cli/compare/v0.50.0...v0.51.0) (2026-08-27)
 
 

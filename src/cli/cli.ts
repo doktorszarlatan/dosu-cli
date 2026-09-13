@@ -28,7 +28,6 @@ import { orgCommand } from "../commands/org";
 import { reviewCommand } from "../commands/review";
 import { skillCommand } from "../commands/skill";
 import { sourcesCommand } from "../commands/sources";
-import { suggestCommand } from "../commands/suggest";
 import { telemetryCommand } from "../commands/telemetry";
 import { threadsCommand } from "../commands/threads";
 import { topicsCommand } from "../commands/topics";
@@ -106,10 +105,12 @@ function commandTelemetryContext(): CommandTelemetryContext {
     const tokenUserID = getAccessTokenUserID(accessToken);
     const userID = configUserID && configUserID === tokenUserID ? configUserID : undefined;
     const email = userID ? getAccessTokenEmail(accessToken) : undefined;
+    const orgId = userID ? cfg.active_account?.target?.org_id : undefined;
     return {
       mode: cfg.mode === MODE_OSS ? "oss" : "cloud",
       isAuthenticated: authenticated,
       ...(userID ? { user: { id: userID, ...(email ? { email } : {}) } } : {}),
+      ...(orgId ? { orgId } : {}),
     };
   } catch {
     return { mode: "cloud", isAuthenticated: false };
@@ -553,7 +554,6 @@ export function createProgram(options: { telemetry?: CommandTelemetry } = {}): C
   program.addCommand(orgCommand());
   program.addCommand(reviewCommand());
   program.addCommand(sourcesCommand());
-  program.addCommand(suggestCommand());
   program.addCommand(telemetryCommand());
   program.addCommand(topicsCommand());
   program.addCommand(threadsCommand());

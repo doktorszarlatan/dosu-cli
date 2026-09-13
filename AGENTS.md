@@ -34,7 +34,7 @@ bun run check                   # Biome lint + format check (used in CI)
 Running `dosu` with no args launches the interactive TUI (`src/tui/tui.ts`). Two broad families of subcommands are registered in `src/cli/cli.ts`:
 
 - **Local / MCP management** — `login`, `logout`, `status`, `setup`, `mcp add|list`, `logs`, `telemetry`.
-- **Dosu platform** (require an authenticated deployment) — `ask`, `knowledge`, `docs`, `suggest`, `threads`, `review`, `sources`, `integrations`, `topics`, `members`, `org`, `deployments`, `analytics`, `insights`, `skill`. Each lives in `src/commands/<name>.ts` and talks to the backend via `src/client/`.
+- **Dosu platform** (require an authenticated deployment) — `ask`, `knowledge`, `docs`, `threads`, `review`, `sources`, `integrations`, `topics`, `members`, `org`, `deployments`, `analytics`, `insights`, `skill`. Each lives in `src/commands/<name>.ts` and talks to the backend via `src/client/`.
 
 Key modules:
 
@@ -57,8 +57,9 @@ All tRPC calls MUST be typed through the generated contract (`CliApiClient` / `T
 
 Telemetry is enabled by default and has one global enable/disable switch. Signed-out command events
 use a random installation ID. Signed-in command and setup-funnel events use the stable Dosu user ID;
-Sentry errors may additionally include that user's email. Never alias prior installation history to
-an account.
+when a selected organization UUID is available, analytics events associate it through
+`$groups.organization`. Sentry errors may additionally include that user's email. Never alias prior
+installation history to an account.
 Setup analytics may include only the documented coarse fields. Never collect prompts, raw command
 lines, free-form argument or option values, user source code, file contents, local paths, environment
 variable names or values, credentials, raw error messages, or `debug.log`. Keep payloads allowlisted, transports
