@@ -1,3 +1,238 @@
+## [0.57.2](https://github.com/dosu-ai/dosu-cli/compare/v0.57.1...v0.57.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* **deployments:** resolve truncated ids in switch instead of sending them to the backend ([#241](https://github.com/dosu-ai/dosu-cli/issues/241)) ([daa2f03](https://github.com/dosu-ai/dosu-cli/commit/daa2f0310782a106554c81eb989336ad8473a67a))
+
+## [0.57.1](https://github.com/dosu-ai/dosu-cli/compare/v0.57.0...v0.57.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **tui:** size the Activity and Analytics lists to the terminal height ([#237](https://github.com/dosu-ai/dosu-cli/issues/237)) ([dda9cf4](https://github.com/dosu-ai/dosu-cli/commit/dda9cf466ae18cfdfd6a03e9c4ce4d07a56f36e6))
+
+# [0.57.0](https://github.com/dosu-ai/dosu-cli/compare/v0.56.1...v0.57.0) (2026-09-24)
+
+
+### Features
+
+* **upgrade:** re-run setup after upgrade and add mcp refresh safety net ([#236](https://github.com/dosu-ai/dosu-cli/issues/236)) ([c3516a0](https://github.com/dosu-ai/dosu-cli/commit/c3516a063a175046731a03bf167c4719e0653db1))
+
+## [0.56.1](https://github.com/dosu-ai/dosu-cli/compare/v0.56.0...v0.56.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* **learner:** pin the gateway's served model and make study-run failures clear and traceable ([#235](https://github.com/dosu-ai/dosu-cli/issues/235)) ([d11802f](https://github.com/dosu-ai/dosu-cli/commit/d11802ff6df46fba7538e97abdb17d2a4d9d7641))
+
+# [0.56.0](https://github.com/dosu-ai/dosu-cli/compare/v0.55.1...v0.56.0) (2026-09-23)
+
+
+### Features
+
+* **telemetry:** report hook enablement on cli_onboarding_completed ([#231](https://github.com/dosu-ai/dosu-cli/issues/231)) ([8ee7208](https://github.com/dosu-ai/dosu-cli/commit/8ee72080f234fd0e803df28bd0e4101774fc5286))
+
+## [0.55.1](https://github.com/dosu-ai/dosu-cli/compare/v0.55.0...v0.55.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* **learner:** cap study-run output tokens and surface gateway 400s ([#233](https://github.com/dosu-ai/dosu-cli/issues/233)) ([a873a6a](https://github.com/dosu-ai/dosu-cli/commit/a873a6a77c5de80423df83f66fd54c3709c51793))
+
+# [0.55.0](https://github.com/dosu-ai/dosu-cli/compare/v0.54.1...v0.55.0) (2026-09-22)
+
+
+### Features
+
+* **knowledge:** status-line indicator and /dosu-incognito per-session opt-out ([#224](https://github.com/dosu-ai/dosu-cli/issues/224)) ([79bac65](https://github.com/dosu-ai/dosu-cli/commit/79bac654e70a9aa5845c641609007c4153395053))
+
+## [0.54.1](https://github.com/dosu-ai/dosu-cli/compare/v0.54.0...v0.54.1) (2026-09-22)
+
+
+### Bug Fixes
+
+* sign macOS release binaries before packaging ([#232](https://github.com/dosu-ai/dosu-cli/issues/232)) ([ae6f9b3](https://github.com/dosu-ai/dosu-cli/commit/ae6f9b3abd120c2d1d1e8c8e92d83e1297d4cb65))
+
+# [0.54.0](https://github.com/dosu-ai/dosu-cli/compare/v0.53.1...v0.54.0) (2026-09-22)
+
+
+### Features
+
+* **telemetry:** add knowledge sync and backfill-offer facets ([#230](https://github.com/dosu-ai/dosu-cli/issues/230)) ([96db407](https://github.com/dosu-ai/dosu-cli/commit/96db407be398af20d83d549da0255f5a15cd8b1d))
+
+## [0.53.1](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0...v0.53.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **codex:** strip legacy remote-HTTP entry from the other config scope ([#229](https://github.com/dosu-ai/dosu-cli/issues/229)) ([003b7ec](https://github.com/dosu-ai/dosu-cli/commit/003b7ece8688910b2bb438e75c5dd9c0a4d2fbef))
+
+# [0.53.0](https://github.com/dosu-ai/dosu-cli/compare/v0.52.3...v0.53.0) (2026-09-17)
+
+
+### Features
+
+* 0.53.0 - Beta -> main ([#226](https://github.com/dosu-ai/dosu-cli/issues/226)) ([5d56fb5](https://github.com/dosu-ai/dosu-cli/commit/5d56fb565b948c0177daedcb4def766b5dc96456))
+
+# [0.53.0-beta.16](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.15...v0.53.0-beta.16) (2026-09-17)
+
+
+### Bug Fixes
+
+* **mcp:** write Zed config to ~/.config/zed with Zed's remote-server shape ([#217](https://github.com/dosu-ai/dosu-cli/issues/217)) ([0d0453d](https://github.com/dosu-ai/dosu-cli/commit/0d0453dc55cab1108ba02ddd2452e90177b059e3))
+* **telemetry:** associate CLI events with organizations ([#207](https://github.com/dosu-ai/dosu-cli/issues/207)) ([9ea62b2](https://github.com/dosu-ai/dosu-cli/commit/9ea62b21a8a2e2b086c13b4deb475340a47cb10f))
+
+# [0.53.0-beta.15](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.14...v0.53.0-beta.15) (2026-09-16)
+
+
+### Bug Fixes
+
+* **tui:** lowercase menu, tab, and breadcrumb labels for consistent casing ([#225](https://github.com/dosu-ai/dosu-cli/issues/225)) ([0f0f23f](https://github.com/dosu-ai/dosu-cli/commit/0f0f23fd01c44cd6292994eb29b17cbfa5896682))
+
+# [0.53.0-beta.14](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.13...v0.53.0-beta.14) (2026-09-16)
+
+
+### Features
+
+* studying terminology, named session rows, and a complete knowledge report ([f0ae47b](https://github.com/dosu-ai/dosu-cli/commit/f0ae47b6fc3692bdfe1f2beadadb838901b82c91)), closes [221/#220](https://github.com/dosu-ai/dosu-cli/issues/220) [dosu-ai/dosu#12484](https://github.com/dosu-ai/dosu/issues/12484)
+
+# [0.53.0-beta.13](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.12...v0.53.0-beta.13) (2026-09-15)
+
+
+### Features
+
+* **tui:** c clears mining history on the Activity screen ([#220](https://github.com/dosu-ai/dosu-cli/issues/220)) ([ac7a5b6](https://github.com/dosu-ai/dosu-cli/commit/ac7a5b6140b88461ac7c8648765f09aca7dd702b))
+* **ux:** say Studying instead of Mining, with 📚, and explain each study action ([#221](https://github.com/dosu-ai/dosu-cli/issues/221)) ([5ba3080](https://github.com/dosu-ai/dosu-cli/commit/5ba3080a0a03cca88f2bd80e32491c0507d35a90))
+
+# [0.53.0-beta.12](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.11...v0.53.0-beta.12) (2026-09-15)
+
+
+### Bug Fixes
+
+* **tui:** window select() to the terminal height like multiselect ([#219](https://github.com/dosu-ai/dosu-cli/issues/219)) ([baf8153](https://github.com/dosu-ai/dosu-cli/commit/baf8153941c6bcacf2b8fcbf2ddde3b9fae08b0b))
+
+# [0.53.0-beta.11](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.10...v0.53.0-beta.11) (2026-09-14)
+
+
+### Bug Fixes
+
+* **tui:** probe session at launch and extend the f full-rows toggle to Activity ([#218](https://github.com/dosu-ai/dosu-cli/issues/218)) ([f16c276](https://github.com/dosu-ai/dosu-cli/commit/f16c2768972025dcbc4e5754c8b0e67e7c0c7621))
+
+# [0.53.0-beta.10](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.9...v0.53.0-beta.10) (2026-09-11)
+
+
+### Features
+
+* add 'sources connect' and 'sources create' commands ([a038092](https://github.com/dosu-ai/dosu-cli/commit/a038092f46bc37f20be1421f2797725ef7bd6bac))
+* **tui:** f toggles full untruncated session rows on the activity tabs ([9b3f3a2](https://github.com/dosu-ai/dosu-cli/commit/9b3f3a2399690ee45a718072ee8c609340fbc75a))
+
+# [0.53.0-beta.9](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.8...v0.53.0-beta.9) (2026-09-11)
+
+
+### Bug Fixes
+
+* **miner:** per-write transcript attribution (deterministic, no concentration) ([#214](https://github.com/dosu-ai/dosu-cli/issues/214)) ([b9ff358](https://github.com/dosu-ai/dosu-cli/commit/b9ff358d07bb5aaaa5024c45044a98a57d3f5db8))
+
+# [0.53.0-beta.8](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.7...v0.53.0-beta.8) (2026-09-11)
+
+
+### Features
+
+* **knowledge:** dosu knowledge backfill-transcripts (self-serve history attribution) ([#213](https://github.com/dosu-ai/dosu-cli/issues/213)) ([20eec38](https://github.com/dosu-ai/dosu-cli/commit/20eec3815ebaf0cc2dad6f1d6e8ad5dd8b0095da))
+
+# [0.53.0-beta.7](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.6...v0.53.0-beta.7) (2026-09-11)
+
+
+### Features
+
+* **knowledge:** transcript-attributed notes with the backend as source of truth ([#212](https://github.com/dosu-ai/dosu-cli/issues/212)) ([30a4bb2](https://github.com/dosu-ai/dosu-cli/commit/30a4bb28e996284c383830849332529271521ddc))
+
+# [0.53.0-beta.6](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.5...v0.53.0-beta.6) (2026-09-09)
+
+
+### Bug Fixes
+
+* **tui:** let manual sync from the Activity screen ignore failure backoff ([#210](https://github.com/dosu-ai/dosu-cli/issues/210)) ([c5cd8d7](https://github.com/dosu-ai/dosu-cli/commit/c5cd8d7254c62c83990c5bf840c3e30e688838c6))
+
+# [0.53.0-beta.5](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.4...v0.53.0-beta.5) (2026-09-09)
+
+
+### Bug Fixes
+
+* **tui:** drop unused export on syncConfirmMode ([8afb611](https://github.com/dosu-ai/dosu-cli/commit/8afb611b604affdf63a1372a48bcfaeb424847db))
+
+
+### Features
+
+* **tui:** stop/resume mining, knowledge sessions command, analytics column headers ([def38ad](https://github.com/dosu-ai/dosu-cli/commit/def38adfc690fbbec00d28bb77b0610069003210))
+
+# [0.53.0-beta.4](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.3...v0.53.0-beta.4) (2026-09-04)
+
+
+### Bug Fixes
+
+* **miner:** use the built-in write-knowledge rules for mining runs ([1858126](https://github.com/dosu-ai/dosu-cli/commit/1858126c08eb41ae73ced07fdb09b6b1aa80520e))
+
+# [0.53.0-beta.3](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.2...v0.53.0-beta.3) (2026-09-04)
+
+
+### Bug Fixes
+
+* **tui:** persist the mining run's progress baseline so the bar survives reopening ([5f47c36](https://github.com/dosu-ai/dosu-cli/commit/5f47c3601bcafaf7121c5f95e8f9026b90d2d125))
+
+
+### Features
+
+* **tui:** analytics tabs as equal-width side-by-side cells ([566f6e6](https://github.com/dosu-ai/dosu-cli/commit/566f6e6220de152f66891f9bf1491d17c4842287))
+
+
+### Reverts
+
+* Revert "fix(tui): compact side-by-side analytics tabs instead of full-width spread" ([cad0f61](https://github.com/dosu-ai/dosu-cli/commit/cad0f6165f505beb808d17fdf8c07bc62b56f0b6))
+
+# [0.53.0-beta.2](https://github.com/dosu-ai/dosu-cli/compare/v0.53.0-beta.1...v0.53.0-beta.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* remove retired library auto-publish setting ([#204](https://github.com/dosu-ai/dosu-cli/issues/204)) ([9f46752](https://github.com/dosu-ai/dosu-cli/commit/9f467528475411d455128a30670766edc46fff05))
+* **tui:** compact side-by-side analytics tabs instead of full-width spread ([bc53d1f](https://github.com/dosu-ai/dosu-cli/commit/bc53d1fdef160fb7c939e71fc256e7abcf591877))
+
+
+### Features
+
+* **tui:** give the Analytics screen its own tab strip (Overview, Projects, Pages) ([4f0a3dd](https://github.com/dosu-ai/dosu-cli/commit/4f0a3ddda747ab26faf7a0cde3c0abb5f97dee0f))
+
+# [0.53.0-beta.1](https://github.com/dosu-ai/dosu-cli/compare/v0.52.0...v0.53.0-beta.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* align session-context headers with the final dosu[#12264](https://github.com/dosu-ai/dosu-cli/issues/12264) contract ([3aa558b](https://github.com/dosu-ai/dosu-cli/commit/3aa558b3b51fd4ad4b35e933f301f253baed06bc))
+* build deployment reuse map org-wide so orphan repos connect ([613e84d](https://github.com/dosu-ai/dosu-cli/commit/613e84d474fab10b1b9a0b9676b32309ccf115b9))
+* commit the miner executable-fallback module ([7157aba](https://github.com/dosu-ai/dosu-cli/commit/7157aba73c3c766420e2b4edc47d03c01a32dd92))
+* fall back to os.homedir() when HOME is missing from the env ([fa42e1b](https://github.com/dosu-ai/dosu-cli/commit/fa42e1bdc845711be9ef0d2099750179828fbfe0))
+* rename miner sessions server so tool names have no hyphen ([8159cf5](https://github.com/dosu-ai/dosu-cli/commit/8159cf529abcca8ae54270e23c2abe42ffd8f328))
+* satisfy knip deadcode gate ([95dcc1d](https://github.com/dosu-ai/dosu-cli/commit/95dcc1d981649507f0f84eff277cd03fa636e4d3))
+* settings row reads 'Mining scope' and names the picked projects ([11cfbd3](https://github.com/dosu-ai/dosu-cli/commit/11cfbd3a39326ee2b5d4b19a71dfeb1ce7002002))
+* window the multiselect to the terminal height and clip long labels ([6e7c08a](https://github.com/dosu-ai/dosu-cli/commit/6e7c08ad1ce6bfe156029fb5f4b65ce9e9a51fbd))
+
+
+### Features
+
+* 'a' toggles select-all/none in the multiselect ([f4d2d88](https://github.com/dosu-ai/dosu-cli/commit/f4d2d8848285ead6e70aed1f22f4a1c9d65ae281))
+* add session-end knowledge sync hooks with local log mining ([0311747](https://github.com/dosu-ai/dosu-cli/commit/031174794b00f8bdcc4d32882505b62604850934))
+* resolve miner rules from the installed skill and drop the setup log-mining handoff ([cf9e88f](https://github.com/dosu-ai/dosu-cli/commit/cf9e88fbffbece3b10eb72a7d9900112543e5c4b))
+* scope mining by real working directory instead of session-store folder names ([161d231](https://github.com/dosu-ai/dosu-cli/commit/161d23124312705311a7eff73793ca4ef221cd39))
+* send session-context headers on the miner knowledge connection ([2067cbf](https://github.com/dosu-ai/dosu-cli/commit/2067cbf0d7b896971b90dbe5914672fd2610bcfb)), closes [dosu#12249](https://github.com/dosu/issues/12249)
+* setup-first TUI gating and per-project mining scope ([66f2599](https://github.com/dosu-ai/dosu-cli/commit/66f2599773b9c7adbaffa3b94cf6d09787bd842f))
+* show connected repos inline in the GitHub picker ([0e9ae36](https://github.com/dosu-ai/dosu-cli/commit/0e9ae369c6d6bd033bedf9c738e4b711315960ee))
+* **tui:** add live sync-status view and full-screen welcome screen ([a7e9d2f](https://github.com/dosu-ai/dosu-cli/commit/a7e9d2f56cbeb587044ef1a3f486b8b049ffcb31))
+* **tui:** rework home into Activity, Analytics, and Pages screens ([a7408a3](https://github.com/dosu-ai/dosu-cli/commit/a7408a39565148dc9f6a20ed04630733bc27b104))
+* **tui:** surface live mining state in the menu and after setup ([ddebe82](https://github.com/dosu-ai/dosu-cli/commit/ddebe82d7baecdb27457986cd511250074235be1))
+* **tui:** treat a missing session-end hook as incomplete setup ([8a514e0](https://github.com/dosu-ai/dosu-cli/commit/8a514e0ba6b5d1d180edb6ad685c064d88fa0c39))
+
 ## [0.52.3](https://github.com/dosu-ai/dosu-cli/compare/v0.52.2...v0.52.3) (2026-09-12)
 
 

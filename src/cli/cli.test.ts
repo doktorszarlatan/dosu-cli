@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../debug/logger", () => ({
@@ -18,10 +19,15 @@ vi.mock("../debug/logger", () => ({
 vi.mock("../version/update-check", () => ({ checkForUpdates: vi.fn() }));
 vi.mock("../version/skill-update-check", () => ({ checkForSkillUpdates: vi.fn() }));
 vi.mock("../version/pending-tasks-check", () => ({ checkForReadyTasks: vi.fn() }));
+vi.mock("../version/mcp-refresh-check", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../version/mcp-refresh-check")>()),
+  checkForMcpRefresh: vi.fn(),
+  writeMcpRefreshCache: vi.fn(),
+}));
 
 import { saveConfig } from "../config/config";
 import type { CommandTelemetry } from "../telemetry/telemetry";
-import { createProgram, shouldRunBackgroundChecks } from "./cli";
+import { createProgram, shouldRunBackgroundChecks, shouldRunMcpRefreshCheck } from "./cli";
 
 describe("CLI", () => {
   let originalArgv: string[];
@@ -77,12 +83,27 @@ describe("CLI", () => {
     expect(cmd?.options.find((o) => o.long === "--json")).toBeDefined();
   });
 
-  it("has mcp command with add and list subcommands", () => {
+  it("has mcp command with add, refresh, and list subcommands", () => {
     const program = createProgram();
     const mcpCmd = program.commands.find((c) => c.name() === "mcp");
     expect(mcpCmd).toBeDefined();
     expect(mcpCmd?.commands.find((c) => c.name() === "add")).toBeDefined();
+    expect(mcpCmd?.commands.find((c) => c.name() === "refresh")).toBeDefined();
     expect(mcpCmd?.commands.find((c) => c.name() === "list")).toBeDefined();
+  });
+
+  it("skips the automatic MCP refresh for setup and the explicit mcp refresh command", () => {
+    const program = createProgram();
+    const mcpCmd = program.commands.find((c) => c.name() === "mcp");
+    const refresh = mcpCmd?.commands.find((c) => c.name() === "refresh");
+    const list = mcpCmd?.commands.find((c) => c.name() === "list");
+    const setup = program.commands.find((c) => c.name() === "setup");
+    if (!refresh || !list || !setup) throw new Error("commands missing");
+    expect(shouldRunMcpRefreshCheck(setup)).toBe(false);
+    expect(shouldRunMcpRefreshCheck(refresh)).toBe(false);
+    expect(shouldRunMcpRefreshCheck(list)).toBe(true);
+    // A top-level command that happens to be named "refresh" would still get the check.
+    expect(shouldRunMcpRefreshCheck(new Command("refresh"))).toBe(true);
   });
 
   it("has setup command with --deployment option", () => {
@@ -123,13 +144,61 @@ describe("CLI", () => {
     expect(debugOpt).toBeDefined();
   });
 
-  it("has logs command with --tail and --clear options", () => {
+  it("has logs command with --tail, --follow, and --clear options", () => {
     const program = createProgram();
     const cmd = program.commands.find((c) => c.name() === "logs");
     expect(cmd).toBeDefined();
     expect(cmd?.description()).toContain("debug logs");
     expect(cmd?.options.find((o) => o.long === "--tail")).toBeDefined();
+    expect(cmd?.options.find((o) => o.long === "--follow")).toBeDefined();
     expect(cmd?.options.find((o) => o.long === "--clear")).toBeDefined();
+  });
+
+  it("logs --follow prints history then streams appended lines", async () => {
+    vi.useFakeTimers();
+    const dir = mkdtempSync(join(tmpdir(), "dosu-cli-follow-"));
+    const logPath = join(dir, "debug.log");
+    writeFileSync(logPath, "alpha\nbeta\n");
+    const { logger } = await import("../debug/logger");
+    const getLogPath = vi.mocked(logger.getLogPath);
+    getLogPath.mockReturnValue(logPath);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      await createProgram().parseAsync(["node", "dosu", "logs", "--follow", "-t", "1"]);
+      expect(logSpy.mock.calls.join("\n")).toContain("beta");
+
+      appendFileSync(logPath, "gamma\n");
+      vi.advanceTimersByTime(600);
+      expect(writeSpy.mock.calls.flat().join("")).toContain("gamma\n");
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+      logSpy.mockRestore();
+      writeSpy.mockRestore();
+      getLogPath.mockReturnValue("/tmp/test-debug.log");
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("logs --follow without a log file waits for output", async () => {
+    vi.useFakeTimers();
+    const dir = mkdtempSync(join(tmpdir(), "dosu-cli-follow-empty-"));
+    const logPath = join(dir, "debug.log");
+    const { logger } = await import("../debug/logger");
+    const getLogPath = vi.mocked(logger.getLogPath);
+    getLogPath.mockReturnValue(logPath);
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await createProgram().parseAsync(["node", "dosu", "logs", "--follow"]);
+      expect(logSpy.mock.calls.join("\n")).toContain("waiting for output");
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+      logSpy.mockRestore();
+      getLogPath.mockReturnValue("/tmp/test-debug.log");
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("has telemetry privacy controls", () => {

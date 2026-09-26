@@ -10,8 +10,8 @@ Dosu CLI (`@dosu/cli`) — a CLI tool that manages MCP (Model Context Protocol) 
 
 ```bash
 bun install                     # Install dependencies
-bun run dev                     # Run CLI from source (loads .env.development; Bun's NODE_ENV default)
-bun run dev:local               # Run CLI from source (local dev endpoints, DOSU_DEV=true)
+bun run dev                     # Production endpoints + isolated ~/.config/dosu-cli-dev (DOSU_DEV=true)
+bun run dev:local               # Run CLI from source (local endpoints + DOSU_DEV=true)
 bun run build                   # Compile to single binary via bun build --compile
 bun run build:npm               # Bundle for npm distribution (bin/dosu.js)
 bun run build:all               # Cross-platform build matrix
@@ -33,8 +33,8 @@ bun run check                   # Biome lint + format check (used in CI)
 
 Running `dosu` with no args launches the interactive TUI (`src/tui/tui.ts`). Two broad families of subcommands are registered in `src/cli/cli.ts`:
 
-- **Local / MCP management** — `login`, `logout`, `status`, `setup`, `mcp add|list`, `logs`, `telemetry`.
-- **Dosu platform** (require an authenticated deployment) — `ask`, `knowledge`, `docs`, `threads`, `review`, `sources`, `integrations`, `topics`, `members`, `org`, `deployments`, `analytics`, `insights`, `skill`. Each lives in `src/commands/<name>.ts` and talks to the backend via `src/client/`.
+- **Local / MCP management** — `login`, `logout`, `status`, `setup`, `mcp add|refresh|list`, `logs`, `telemetry`.
+- **Dosu platform** (require an authenticated deployment) — `ask`, `knowledge`, `docs`, `threads`, `review`, `sources`, `integrations`, `topics`, `members`, `org`, `deployments`, `analytics`, `skill`. Each lives in `src/commands/<name>.ts` and talks to the backend via `src/client/`.
 
 Key modules:
 
@@ -47,7 +47,7 @@ Key modules:
 - **`src/agent/`** — Non-interactive setup for coding agents (`setup --agent --tool <id>`) and the ticket-based login commands (`login --request`/`--check`). Emits machine-readable JSON via `output.ts` for agent consumption.
 - **`src/telemetry/`** — Default-on analytics and error diagnostics with one persisted global switch, safe payload builders, and fail-open transport. User controls live under `dosu telemetry status|enable|disable|reset`.
 - **`src/tui/`** — Main menu TUI when running `dosu` with no subcommand.
-- **`src/version/`** — Version string from the build-time `DOSU_VERSION` env var, plus background update checks (`update-check.ts`, `skill-update-check.ts`).
+- **`src/version/`** — Version string from the build-time `DOSU_VERSION` env var, plus background update checks (`update-check.ts`, `skill-update-check.ts`). `mcp-refresh-check.ts` is the post-upgrade safety net: on the first command after an upgrade that crossed a release listed in `MCP_FORMAT_CHANGES` (releases that changed the shape of the MCP entry, currently `0.53.0`), it rewrites the Dosu MCP entry in every installed, already-configured tool with the new provider code (via `src/mcp/refresh.ts`), records the version in `mcp-refresh.json`, and nudges the user to run `dosu setup` for hooks/skills/rules. Bumps that did not cross a format change only advance the marker. **Add the new version to `MCP_FORMAT_CHANGES` whenever a provider's `install` output changes shape.** `dosu setup` and `dosu mcp refresh` record the same marker and skip the automatic check. `dosu upgrade` re-invokes the *new* binary (old process cannot write the new format) to run `setup` on a TTY, or `mcp refresh` otherwise.
 
 ## CLI Contract Discipline
 
@@ -179,13 +179,14 @@ npx @dosu/cli@alpha setup
 - `DO_NOT_TRACK=1` or `DOSU_TELEMETRY_DISABLED=1` — master disable for all telemetry.
 - `DOSU_TELEMETRY_DEBUG=1` — print the exact safe payload to stderr and send nothing.
 
-<!-- dosu:mcp:start v1 -->
-## Dosu
+<!-- dosu:mcp:start v2 -->
+The team you are assisting maintains shared knowledge in Dosu: consult it to build on prior work, and contribute durable knowledge so future teammates and agents do not have to rediscover it. Always use only tools currently listed by the server.
 
-Shared team knowledge lives in [Dosu](https://dosu.dev), via the Dosu MCP server.
+When `read_knowledge` is listed, call it before non-trivial code or documentation work involving architecture, conventions, prior decisions, gotchas, incidents, ownership, or branch history. **If unsure whether relevant context exists, read first.** Pass `repo` and `branch` when available. Skip generic questions, trivial or self-contained edits, and context already injected by Dosu.
 
-- Before a task, and for any codebase or docs questions: pull context with `read_knowledge` before digging through source.
-- After a task: save durable learnings with `write_knowledge`.
+When `write_knowledge` is listed, use it after the task for durable, non-obvious knowledge that future work would otherwise have to rediscover. Do not save task or PR summaries, progress, test results, obvious facts, speculation, duplicates, or sensitive data. **If nothing durable was learned, do not write.**
 
-Missing these tools? Run `dosu setup --help` — it covers agent-assisted setup.
+Use `review_knowledge` only when the user asks to inspect or manage pending knowledge. Preview one item at a time and require explicit confirmation before making changes.
+
+When `read_knowledge` or `write_knowledge` returned a `receipt_item_id` this turn, call `finalize_session_knowledge` exactly once at the end of the turn — after completing the task, immediately before your final reply — passing all receipt_item_ids from this turn. Never call it when the current turn produced no receipt_item_id, and never call it more than once per turn.
 <!-- dosu:mcp:end -->

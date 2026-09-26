@@ -14,9 +14,7 @@ import type { Config } from "../../config/config";
 import { type FlatTestConfig, makeTestConfig } from "../../config/config.test-utils";
 import { loadJSONConfig, MCP_REMOTE_VERSION } from "../config-helpers";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// --- Helpers ---
 
 function makeCfg(overrides: Partial<FlatTestConfig> = {}): Config {
   return makeTestConfig({
@@ -30,9 +28,7 @@ function makeCfg(overrides: Partial<FlatTestConfig> = {}): Config {
   });
 }
 
-// ---------------------------------------------------------------------------
-// 1. Base provider (createJSONProvider)
-// ---------------------------------------------------------------------------
+// --- 1. Base provider (createJSONProvider) ---
 
 describe("createJSONProvider (base)", () => {
   let tempDir: string;
@@ -262,9 +258,7 @@ describe("createJSONProvider (base)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 2. Codex provider (TOML-based)
-// ---------------------------------------------------------------------------
+// --- 2. Codex provider (TOML-based) ---
 
 describe("CodexProvider", () => {
   let tempDir: string;
@@ -314,16 +308,14 @@ describe("CodexProvider", () => {
     expect(content).toContain(`mcp-remote@${MCP_REMOTE_VERSION}`);
     expect(content).toContain("/deployments/dep-123");
     expect(content).toContain("http-only");
-    // The API key rides in the env block as a ${VAR} placeholder the proxy
-    // expands — argv (visible via `ps`) never carries the raw key.
+    // The API key rides in the env block as a ${VAR} placeholder; argv never carries the raw key.
     // biome-ignore lint/suspicious/noTemplateCurlyInString: literal placeholder expanded by mcp-remote
     expect(content).toContain("X-Dosu-API-Key:${X_DOSU_API_KEY}");
     expect(content).toContain("[mcp_servers.dosu.env]");
     expect(content).toContain('X_DOSU_API_KEY = "key-abc"');
     expect(content).not.toContain("X-Dosu-API-Key:key-abc");
-    // Codex desktop only renders MCP Apps (the Session Knowledge card) for
-    // stdio servers — a remote-HTTP entry works for tools but never shows
-    // the card, so the provider must not write that form.
+    // Codex desktop only renders MCP Apps for stdio servers, so the provider
+    // must not write the remote-HTTP form.
     expect(content).not.toContain('type = "http"');
     expect(content).not.toContain("http_headers");
   });
@@ -494,11 +486,159 @@ describe("CodexProvider", () => {
 
     expect(provider.globalConfigPath()).toBe(join(tempDir, "codex-home", "config.toml"));
   });
+
+  it.each([
+    "install",
+    "remove",
+    "prune",
+  ])("%s preserves unrelated TOML arrays of tables after Dosu", async (operation) => {
+    const { CodexProvider } = await import("./codex");
+    const provider = CodexProvider();
+    const path = join(tempDir, ".codex", "config.toml");
+    const hooks = `[[hooks.PreToolUse]] # command hooks
+matcher = "Bash"
+[[ hooks.PreToolUse.hooks ]] # preserve inner whitespace too
+type = "command"
+command = "echo check"
+`;
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, `[mcp_servers.dosu]\nurl = "https://example.com/mcp"\n${hooks}`);
+
+    if (operation === "remove") provider.remove(false);
+    else provider.install(makeCfg(), operation === "prune");
+
+    const content = readFileSync(path, "utf-8");
+    expect(content).toContain(hooks);
+    expect(content).not.toContain('url = "https://example.com/mcp"');
+  });
+
+  // Codex merges `mcp_servers.dosu` per-key across the global and project-local
+  // configs, so a legacy remote-HTTP entry left in the scope we are NOT writing
+  // merges into ours as a stray `url` beside `command`. Codex rejects that with
+  // "url is not supported for stdio" and refuses to load the entire config —
+  // every MCP server goes down, not just dosu.
+  const LEGACY_REMOTE_TOML = `[mcp_servers.other]
+command = "other-cmd"
+
+[mcp_servers.dosu]
+url = "https://api.dosu.dev/v1/mcp"
+
+[mcp_servers.dosu.http_headers]
+X-Deployment-ID = "old-dep"
+`;
+
+  it("global install strips a legacy remote-HTTP entry from the local scope", async () => {
+    const { CodexProvider } = await import("./codex");
+    const provider = CodexProvider();
+    const localPath = join(tempDir, ".codex", "config.toml");
+    mkdirSync(join(tempDir, ".codex"), { recursive: true });
+    writeFileSync(localPath, LEGACY_REMOTE_TOML);
+
+    provider.install(makeCfg(), true);
+
+    const local = readFileSync(localPath, "utf-8");
+    expect(local).not.toContain("[mcp_servers.dosu]");
+    expect(local).not.toContain("http_headers");
+    expect(local).not.toContain("url =");
+    // Only the dosu entry is pruned; unrelated servers survive untouched.
+    expect(local).toContain("[mcp_servers.other]");
+    expect(local).toContain('command = "other-cmd"');
+
+    const global = readFileSync(join(tempDir, "codex-home", "config.toml"), "utf-8");
+    expect(global).toContain("[mcp_servers.dosu]");
+    expect(global).toContain("mcp-remote@");
+  });
+
+  it("install leaves a stdio entry in the other scope alone", async () => {
+    const { CodexProvider } = await import("./codex");
+    const provider = CodexProvider();
+
+    // A project-local stdio entry is a deliberate per-repo deployment override:
+    // it merges cleanly with ours, so the CLI must not delete it.
+    provider.install(makeCfg({ deployment_id: "repo-dep" }), false);
+    provider.install(makeCfg(), true);
+
+    const local = readFileSync(join(tempDir, ".codex", "config.toml"), "utf-8");
+    expect(local).toContain("[mcp_servers.dosu]");
+    expect(local).toContain("/deployments/repo-dep");
+  });
+
+  it("install does not create the other scope's config file", async () => {
+    const { CodexProvider } = await import("./codex");
+    const provider = CodexProvider();
+
+    provider.install(makeCfg(), true);
+
+    expect(existsSync(join(tempDir, ".codex", "config.toml"))).toBe(false);
+  });
+
+  // Codex walks from the project root to the cwd and loads every .codex/config.toml it finds,
+  // so a legacy entry at the repo root still merges when setup runs from a subdirectory.
+  it("global install prunes a legacy entry at the project root from a subdirectory", async () => {
+    const { CodexProvider } = await import("./codex");
+    const provider = CodexProvider();
+    mkdirSync(join(tempDir, ".git"), { recursive: true });
+    mkdirSync(join(tempDir, ".codex"), { recursive: true });
+    writeFileSync(join(tempDir, ".codex", "config.toml"), LEGACY_REMOTE_TOML);
+    const sub = join(tempDir, "packages", "app");
+    mkdirSync(sub, { recursive: true });
+    process.chdir(sub);
+
+    provider.install(makeCfg(), true);
+
+    const root = readFileSync(join(tempDir, ".codex", "config.toml"), "utf-8");
+    expect(root).not.toContain("[mcp_servers.dosu]");
+    expect(root).toContain("[mcp_servers.other]");
+  });
+
+  // A project-local install must never rewrite the global config: other projects rely on it.
+  it("local install leaves a legacy global entry untouched and fails with a remedy", async () => {
+    const { CodexProvider } = await import("./codex");
+    const provider = CodexProvider();
+    const globalPath = join(tempDir, "codex-home", "config.toml");
+    mkdirSync(join(tempDir, "codex-home"), { recursive: true });
+    writeFileSync(globalPath, LEGACY_REMOTE_TOML);
+
+    expect(() => provider.install(makeCfg(), false)).toThrow(/--global/);
+
+    // Global config preserved verbatim, and no half-written local entry left behind.
+    expect(readFileSync(globalPath, "utf-8")).toBe(LEGACY_REMOTE_TOML);
+    expect(existsSync(join(tempDir, ".codex", "config.toml"))).toBe(false);
+  });
+
+  it("local install proceeds when the global entry is already the stdio form", async () => {
+    const { CodexProvider } = await import("./codex");
+    const provider = CodexProvider();
+
+    provider.install(makeCfg(), true);
+    expect(() => provider.install(makeCfg({ deployment_id: "repo-dep" }), false)).not.toThrow();
+
+    const global = readFileSync(join(tempDir, "codex-home", "config.toml"), "utf-8");
+    expect(global).toContain("/deployments/dep-123");
+    const local = readFileSync(join(tempDir, ".codex", "config.toml"), "utf-8");
+    expect(local).toContain("/deployments/repo-dep");
+  });
+
+  // `[mcp_servers.dosu] # note` is valid TOML; detection and removal must both handle it.
+  it("detects and removes a dosu section carrying a trailing TOML comment", async () => {
+    const { CodexProvider } = await import("./codex");
+    const provider = CodexProvider();
+    const localPath = join(tempDir, ".codex", "config.toml");
+    mkdirSync(join(tempDir, ".codex"), { recursive: true });
+    writeFileSync(
+      localPath,
+      '[mcp_servers.dosu] # deployment override\nurl = "https://api.dosu.dev/v1/mcp"\n',
+    );
+
+    provider.install(makeCfg(), true);
+
+    const local = readFileSync(localPath, "utf-8");
+    expect(local).not.toContain("mcp_servers.dosu");
+    expect(local).not.toContain("url =");
+  });
 });
 
-// ---------------------------------------------------------------------------
-// 3. Copilot provider
-// ---------------------------------------------------------------------------
+// --- 3. Copilot provider ---
 
 describe("CopilotProvider", () => {
   let tempDir: string;
@@ -622,9 +762,7 @@ describe("CopilotProvider", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 4. MCPorter provider
-// ---------------------------------------------------------------------------
+// --- 4. MCPorter provider ---
 
 describe("MCPorterProvider", () => {
   let tempDir: string;
@@ -748,9 +886,7 @@ describe("MCPorterProvider", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 5. Manual provider
-// ---------------------------------------------------------------------------
+// --- 5. Manual provider ---
 
 describe("ManualProvider", () => {
   it("install logs MCP config to console", async () => {
@@ -845,9 +981,7 @@ describe("ManualProvider", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 6. Claude Desktop provider
-// ---------------------------------------------------------------------------
+// --- 6. Claude Desktop provider ---
 
 describe("ClaudeDesktopProvider", () => {
   let tempDir: string;
@@ -890,9 +1024,8 @@ describe("ClaudeDesktopProvider", () => {
     const cfg = loadJSONConfig(provider.globalConfigPath());
     const dosu = cfg.mcpServers.dosu;
     expect(dosu).toBeDefined();
-    // Claude Desktop chat launches MCP servers with a minimal PATH that has
-    // no Homebrew/nvm, so the entry needs an absolute npx plus a PATH env
-    // that lets npx's node shebang resolve.
+    // Claude Desktop launches servers with a minimal PATH, so the entry needs
+    // an absolute npx plus a PATH env that lets npx's node shebang resolve.
     expect(dosu.command).toBe(npxPath);
     expect(dosu.args).toContain(`mcp-remote@${MCP_REMOTE_VERSION}`);
     expect(dosu.args.join(" ")).toContain("/deployments/dep-123");
@@ -982,12 +1115,8 @@ describe("ClaudeDesktopProvider", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 7. createJSONProvider-based providers: Cursor, OpenCode, ClineCli,
-//    Antigravity, Zed
-//    (Cline is excluded because it depends on appSupportDir which is
-//    platform-specific and hard to override via env)
-// ---------------------------------------------------------------------------
+// --- 7. createJSONProvider-based providers: Cursor, OpenCode, ClineCli, Antigravity, Zed ---
+// (Cline excluded: it depends on platform-specific appSupportDir, hard to override via env)
 
 describe("CursorProvider", () => {
   let tempDir: string;

@@ -38,8 +38,10 @@ interface CliOnboardingProperties {
   completed_mcp?: boolean;
   completed_skill?: boolean;
   completed_agents_md?: boolean;
-  completed_logs_handoff?: boolean;
-  logs_handoff?: "accepted" | "declined" | "cancelled";
+  /** At least one session-end knowledge sync hook was enabled in this run. */
+  completed_hooks?: boolean;
+  /** Agents whose knowledge sync hook was enabled in this run. */
+  hook_count?: number;
 }
 
 interface OrganizationGroups {
@@ -213,16 +215,17 @@ function allowlistedWorkflowProperties(properties: CliOnboardingProperties): Saf
     "completed_mcp",
     "completed_skill",
     "completed_agents_md",
-    "completed_logs_handoff",
+    "completed_hooks",
   ] as const) {
     if (typeof input[key] === "boolean") safe[key] = input[key];
   }
   if (
-    input.logs_handoff === "accepted" ||
-    input.logs_handoff === "declined" ||
-    input.logs_handoff === "cancelled"
+    typeof input.hook_count === "number" &&
+    Number.isInteger(input.hook_count) &&
+    input.hook_count >= 0 &&
+    input.hook_count <= 50
   ) {
-    safe.logs_handoff = input.logs_handoff;
+    safe.hook_count = input.hook_count;
   }
   return safe;
 }

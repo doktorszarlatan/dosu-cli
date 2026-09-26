@@ -96,15 +96,16 @@ Or right-click the binary, select "Open", and click "Open" in the dialog.
 | `dosu login` | Authenticate with Dosu via browser OAuth |
 | `dosu logout` | Clear saved credentials |
 | `dosu status [--json]` | Show current authentication and MCP status |
-| `dosu upgrade` | Update Dosu through the package manager that installed it |
+| `dosu upgrade` | Update Dosu through the package manager that installed it, then re-run `dosu setup` on the new version |
 | `dosu mcp list` | List supported AI tools |
 | `dosu mcp add <tool>` | Add the Dosu MCP server to a specific tool |
+| `dosu mcp refresh` | Rewrite the Dosu MCP entry in every already-configured tool from the current setup |
 | `dosu logs` | View or manage debug logs (`--tail`, `--clear`) |
 | `dosu telemetry` | Manage usage analytics and error diagnostics (`status`, `enable`, `disable`, `reset`) |
 
 `dosu mcp add` takes `-g, --global` to install for all projects instead of project-local, and `--show-secret` to print the full manual config.
 
-`dosu upgrade` delegates to npm, pnpm, Yarn Classic, or Homebrew only after confirming which manager owns the current installation. Temporary package-runner invocations stay ephemeral, ambiguous or local installs are left unchanged, and standalone binaries receive the latest safe manual download path.
+`dosu upgrade` delegates to npm, pnpm, Yarn Classic, or Homebrew only after confirming which manager owns the current installation. Temporary package-runner invocations stay ephemeral, ambiguous or local installs are left unchanged, and standalone binaries receive the latest safe manual download path. After a successful update it re-invokes the new version to run `dosu setup`, so every configured tool gets the current MCP entry, hooks, status line, rules, and skill; without a TTY it runs the non-interactive `dosu mcp refresh` instead. Upgrades done outside `dosu upgrade` (npm, brew, `npx @dosu/cli@latest`) get a safety net: when the new version changed the shape of the MCP entry, the first command on it silently rewrites configured tools' MCP entries and prompts you to run `dosu setup` for the rest.
 
 ### Platform commands
 
@@ -117,14 +118,13 @@ Once authenticated against a deployment, you can drive the Dosu platform without
 | `dosu docs` | Manage documents (list, create, update, import, publish, AI-generate) |
 | `dosu threads` | List and manage conversation threads |
 | `dosu review` | Document review workflow |
-| `dosu sources` | Manage connected data sources (list, sync, update) |
+| `dosu sources` | Manage connected data sources (list, connect, create, sync, update) |
 | `dosu integrations` | List and inspect platform integrations (Slack, GitHub, …) |
 | `dosu topics` | List knowledge base topics and their pages |
 | `dosu members` | Invite organization members |
 | `dosu org` | Show organization information |
 | `dosu deployments` | List / show / switch Dosu MCP deployments |
 | `dosu analytics` | View usage statistics |
-| `dosu insights` | Open a visual report of your Dosu space activity |
 | `dosu skill` | Install / update / remove the Dosu agent skill |
 
 Run `dosu <command> --help` for subcommands and flags.
@@ -161,6 +161,25 @@ dosu setup --agent --tool claude
 ```
 
 Combine with `dosu login --request` / `--check <ticket>` for human-in-the-loop authentication, and `--mode oss|cloud` to skip the mode prompt.
+
+### Studying sessions: status line and incognito
+
+With `dosu knowledge hooks enable`, Dosu studies finished coding-agent sessions in the background
+and turns what it learns into shared knowledge. Two switches make that visible and controllable per
+session. `dosu setup` installs both alongside the hook; they can also be managed directly:
+
+```bash
+dosu knowledge statusline enable|disable [claude|cursor]   # status-bar line in Claude Code / Cursor CLI
+dosu knowledge incognito enable|disable [claude|cursor|codex]  # the /dosu-incognito slash command
+```
+
+The status line shows one of `📚 Dosu studying…`, `👻 Dosu incognito`, `⚪ Dosu paused`,
+`⚪ Dosu not studying this folder`, or `⚪ Dosu off`. Neither setup nor `enable` replaces a status
+line you already have; they print the one-liner to add to your own script instead.
+
+Running `/dosu-incognito` inside a session marks that session's transcript so studying skips it
+(the whole session, and for the rest of it — start a new session to turn Dosu back on) and tells the
+model not to use Dosu tools. See [docs/studying.md](docs/studying.md).
 
 ### Telemetry and privacy
 

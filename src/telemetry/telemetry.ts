@@ -23,6 +23,7 @@ const SAFE_ERROR_TYPES = new Set([
   "CliUsageError",
   "CommandExitError",
   "Error",
+  "LearnerRunFailed",
   "OAuthCallbackError",
   "RangeError",
   "ReferenceError",
@@ -96,6 +97,107 @@ const SAFE_ERROR_CODES = new Set([
 ]);
 
 type CommandResult = "success" | "validation_error" | "failure";
+
+/** Closed vocabularies for the optional per-command facets below. Anything outside these sets is
+ * dropped at payload construction, so a new status string can never leak until it is listed here. */
+const SYNC_TRIGGERS = new Set(["hook", "manual", "bootstrap"]);
+const SYNC_STATUSES = new Set([
+  // SyncStatus from src/sync/sync.ts
+  "backlog",
+  "nothing-new",
+  "skipped-backoff",
+  "skipped-lock",
+  "skipped-gateway",
+  "skipped-paused",
+  "studied",
+  "mine-failed",
+  "error",
+  // Command-level outcomes that never reach the pipeline
+  "detached",
+  "detach-failed",
+  "status-only",
+]);
+const LEARNER_OUTCOMES = new Set([
+  "completed",
+  "settings_conflict",
+  "consent_off",
+  "credit_limit",
+  "quota_exceeded",
+  "gateway_rejected",
+  "claude_code_missing",
+  "error",
+]);
+// GatewayRejectionReason from src/learner/runner.ts
+const GATEWAY_REASONS = new Set([
+  "system_role_unsupported",
+  "adaptive_thinking_unsupported",
+  "effort_unsupported",
+  "unsupported_request",
+  "max_tokens",
+  "context_length",
+  "other",
+]);
+const CLAUDE_CODE_SOURCES = new Set(["sdk", "system", "missing"]);
+/** Open-ended but shape-checked: a plain release version, and a Claude model id. */
+const CLAUDE_CODE_VERSION_PATTERN =
+  /^\d{1,4}\.\d{1,4}\.\d{1,6}(?:-[0-9A-Za-z]{1,16}(?:\.[0-9A-Za-z]{1,16}){0,3})?$/;
+const LEARNER_MODEL_PATTERN = /^claude-[a-z0-9.-]{1,56}$/;
+const BACKFILL_OFFERS = new Set([
+  "not-offered",
+  "accepted",
+  "declined",
+  "cancelled",
+  "spawn-failed",
+]);
+
+/** Coarse, low-cardinality facets a command may attach to its own completion event. Every field
+ * is optional and validated against a closed set; counts are bucketed before transport. */
+export interface CommandFacets {
+  /** `knowledge sync`: what started the run. */
+  sync_trigger?: string;
+  /** `knowledge sync`: pipeline status, or a command-level outcome such as `detached`. */
+  sync_status?: string;
+  /** `knowledge sync`: sessions handed to the learner (summed across bootstrap rounds). */
+  sessions_studied?: number;
+  /** `knowledge sync`: `write_knowledge` calls allowed through (summed across bootstrap rounds). */
+  notes_written?: number;
+  /** `knowledge sync`: the learner's own outcome when it ran. */
+  learner_outcome?: string;
+  /** `knowledge sync`: fixed category of a gateway 400; never its text. */
+  gateway_reason?: string;
+  /** `knowledge sync`: where the learner's Claude Code came from. */
+  claude_code_source?: string;
+  /** `knowledge sync`: the spawned Claude Code's version. */
+  claude_code_version?: string;
+  /** `knowledge sync`: the model the study run pinned. */
+  learner_model?: string;
+  /** `setup`: what happened to the post-install "study past sessions" offer. */
+  backfill_offer?: string;
+}
+
+interface SafeCommandFacets {
+  sync_trigger?: string;
+  sync_status?: string;
+  sessions_studied?: string;
+  notes_written?: string;
+  learner_outcome?: string;
+  gateway_reason?: string;
+  claude_code_source?: string;
+  claude_code_version?: string;
+  learner_model?: string;
+  backfill_offer?: string;
+}
+
+/** Facets that also become Sentry tags: the categorical ones that tell failure modes apart. */
+const SENTRY_FACET_TAGS = [
+  "sync_trigger",
+  "sync_status",
+  "learner_outcome",
+  "gateway_reason",
+  "claude_code_source",
+  "claude_code_version",
+  "learner_model",
+] as const;
 
 /** Compatible with the persisted settings shape without coupling to its I/O. */
 export interface TelemetrySettings {
@@ -171,6 +273,16 @@ interface PostHogProperties {
   is_authenticated: boolean;
   exit_code: number;
   error_code?: string;
+  sync_trigger?: string;
+  sync_status?: string;
+  sessions_studied?: string;
+  notes_written?: string;
+  learner_outcome?: string;
+  gateway_reason?: string;
+  claude_code_source?: string;
+  claude_code_version?: string;
+  learner_model?: string;
+  backfill_offer?: string;
 }
 
 export interface PostHogPayload {
@@ -188,6 +300,7 @@ export interface PostHogPayloadInput {
   durationMs: number;
   exitCode: number;
   errorCode?: string;
+  facets?: CommandFacets;
   context: CommandTelemetryContext;
   runtime: RuntimeMetadata;
 }
@@ -210,6 +323,8 @@ export interface SentryEnvelopeInput {
   context: CommandTelemetryContext;
   runtime: RuntimeMetadata;
   error: SafeError;
+  /** The failing command's recorded facets; sanitized exactly as for PostHog. */
+  facets?: CommandFacets;
   eventId: string;
   timestampMs: number;
   debugId?: string;
@@ -233,6 +348,8 @@ export interface TelemetryDependencies {
   runtimeMajor?: number;
   isCi?: boolean;
   isTty?: boolean;
+  /** Facets the running command recorded; defaults to the process-wide `recordCommandFacets` store. */
+  facets?: () => CommandFacets | undefined;
 }
 
 export interface CommandTelemetry {
@@ -483,10 +600,76 @@ export function durationBucket(durationMs: number): string {
   return "60s+";
 }
 
+/** Small-count bucket for per-run session and note counts. */
+export function countBucket(value: unknown): string {
+  const n =
+    typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  if (n === 0) return "0";
+  if (n < 5) return "1-4";
+  if (n < 10) return "5-9";
+  if (n < 20) return "10-19";
+  if (n < 50) return "20-49";
+  return "50+";
+}
+
+// One command runs per process, so the running command records its facets here and the
+// completion dispatch consumes them. Commander actions never see the telemetry object directly.
+let pendingFacets: CommandFacets | undefined;
+
+/** Attach coarse facets to the current command's completion event. Later calls merge over
+ * earlier ones. Values outside the closed allowlists are dropped at payload construction. */
+export function recordCommandFacets(facets: CommandFacets): void {
+  pendingFacets = { ...pendingFacets, ...facets };
+}
+
+/** Return and clear the recorded facets. Exported for the telemetry dependency default and tests. */
+export function consumeCommandFacets(): CommandFacets | undefined {
+  const facets = pendingFacets;
+  pendingFacets = undefined;
+  return facets;
+}
+
+function allowlisted(value: unknown, allowed: Set<string>): string | undefined {
+  return typeof value === "string" && allowed.has(value) ? value : undefined;
+}
+
+function matching(value: unknown, pattern: RegExp): string | undefined {
+  return typeof value === "string" && pattern.test(value) ? value : undefined;
+}
+
+function sanitizeFacets(facets: CommandFacets | undefined): SafeCommandFacets {
+  if (!facets || typeof facets !== "object") return {};
+  const trigger = allowlisted(facets.sync_trigger, SYNC_TRIGGERS);
+  const status = allowlisted(facets.sync_status, SYNC_STATUSES);
+  const learner = allowlisted(facets.learner_outcome, LEARNER_OUTCOMES);
+  const gatewayReason = allowlisted(facets.gateway_reason, GATEWAY_REASONS);
+  const claudeSource = allowlisted(facets.claude_code_source, CLAUDE_CODE_SOURCES);
+  const claudeVersion = matching(facets.claude_code_version, CLAUDE_CODE_VERSION_PATTERN);
+  const model = matching(facets.learner_model, LEARNER_MODEL_PATTERN);
+  const backfill = allowlisted(facets.backfill_offer, BACKFILL_OFFERS);
+  return {
+    ...(trigger ? { sync_trigger: trigger } : {}),
+    ...(status ? { sync_status: status } : {}),
+    ...(facets.sessions_studied !== undefined
+      ? { sessions_studied: countBucket(facets.sessions_studied) }
+      : {}),
+    ...(facets.notes_written !== undefined
+      ? { notes_written: countBucket(facets.notes_written) }
+      : {}),
+    ...(learner ? { learner_outcome: learner } : {}),
+    ...(gatewayReason ? { gateway_reason: gatewayReason } : {}),
+    ...(claudeSource ? { claude_code_source: claudeSource } : {}),
+    ...(claudeVersion ? { claude_code_version: claudeVersion } : {}),
+    ...(model ? { learner_model: model } : {}),
+    ...(backfill ? { backfill_offer: backfill } : {}),
+  };
+}
+
 export function buildPostHogPayload(input: PostHogPayloadInput): PostHogPayload {
   const context = normalizeContext(input.context);
   const runtime = normalizeRuntime(input.runtime);
   const errorCode = validErrorCode(input.errorCode) ? input.errorCode : undefined;
+  const facets = sanitizeFacets(input.facets);
   const result: CommandResult =
     input.result === "success" || input.result === "validation_error" ? input.result : "failure";
 
@@ -520,6 +703,7 @@ export function buildPostHogPayload(input: PostHogPayloadInput): PostHogPayload 
       is_authenticated: context.isAuthenticated,
       exit_code: normalizeExitCode(input.exitCode),
       ...(errorCode ? { error_code: errorCode } : {}),
+      ...facets,
     },
   };
 }
@@ -591,7 +775,13 @@ function sentryTags(
   context: NormalizedContext,
   runtime: RuntimeMetadata,
   error: SafeError,
+  facets: SafeCommandFacets,
 ): Record<string, string> {
+  const facetTags: Record<string, string> = {};
+  for (const key of SENTRY_FACET_TAGS) {
+    const value = facets[key];
+    if (value) facetTags[key] = value;
+  }
   return {
     schema_version: "1",
     command,
@@ -608,7 +798,23 @@ function sentryTags(
     ...(error.code ? { error_code: error.code } : {}),
     ...(error.status ? { http_status: String(error.status) } : {}),
     ...(error.exitCode === undefined ? {} : { exit_code: String(error.exitCode) }),
+    ...facetTags,
   };
+}
+
+/** A recorded learner outcome that describes the failure; a completed study never does (the
+ * command failed after it, e.g. writing `--report`). */
+function failedLearnerOutcome(facets: SafeCommandFacets): string | undefined {
+  return facets.learner_outcome === "completed" ? undefined : facets.learner_outcome;
+}
+
+/** The exception value: the failing outcome in allowlisted words when the command recorded one
+ * (e.g. `knowledge sync: gateway_rejected (system_role_unsupported)`), else the code or type. */
+function exceptionSummary(command: string, error: SafeError, facets: SafeCommandFacets): string {
+  if (facets.learner_outcome === "completed") return error.code ?? error.type;
+  const outcome = facets.learner_outcome ?? facets.sync_status;
+  if (!outcome) return error.code ?? error.type;
+  return `${command}: ${outcome}${facets.gateway_reason ? ` (${facets.gateway_reason})` : ""}`;
 }
 
 export function buildSentryEnvelope(input: SentryEnvelopeInput): SentryEnvelope | null {
@@ -617,6 +823,7 @@ export function buildSentryEnvelope(input: SentryEnvelopeInput): SentryEnvelope 
   const context = normalizeContext(input.context);
   const runtime = normalizeRuntime(input.runtime);
   const command = canonicalCommand(input.command);
+  const facets = sanitizeFacets(input.facets);
   const debugId = validDebugId(input.debugId) ? input.debugId.toLowerCase() : undefined;
   const error: SafeError = {
     type: validErrorType(input.error.type) ? input.error.type : "Error",
@@ -647,7 +854,7 @@ export function buildSentryEnvelope(input: SentryEnvelopeInput): SentryEnvelope 
   };
   const exceptionValue = {
     type: error.type,
-    value: error.code ?? error.type,
+    value: exceptionSummary(command, error, facets),
     ...(error.frames.length > 0 ? { stacktrace: { frames: error.frames } } : {}),
   };
   const newestFrame = error.frames.at(-1);
@@ -660,7 +867,7 @@ export function buildSentryEnvelope(input: SentryEnvelopeInput): SentryEnvelope 
     platform: "node",
     level: "error",
     release: `dosu-cli@${runtime.version}`,
-    tags: sentryTags(command, context, runtime, error),
+    tags: sentryTags(command, context, runtime, error, facets),
     ...(context.user
       ? {
           user: {
@@ -676,7 +883,16 @@ export function buildSentryEnvelope(input: SentryEnvelopeInput): SentryEnvelope 
           },
         }
       : {}),
-    fingerprint: ["dosu-cli", command, error.type, error.code ?? "unknown", safeCallsite],
+    // Learner failure modes share one type, code, and callsite; their outcome splits them apart.
+    fingerprint: [
+      "dosu-cli",
+      command,
+      error.type,
+      error.code ?? "unknown",
+      safeCallsite,
+      ...(failedLearnerOutcome(facets) ? [facets.learner_outcome] : []),
+      ...(facets.gateway_reason ? [facets.gateway_reason] : []),
+    ],
     exception: { values: [exceptionValue] },
   };
   const envelopeHeader = {
@@ -899,10 +1115,8 @@ function eventId(generate: () => string): string | undefined {
   return uuid?.replaceAll("-", "");
 }
 
-/**
- * Command-scoped telemetry. The caller supplies only a canonical command name and coarse context.
- * Telemetry is enabled by default and controlled by one global switch.
- */
+/** Command-scoped telemetry; the caller supplies only a canonical command name and coarse
+ * context. Enabled by default, controlled by one global switch. */
 export function createCommandTelemetry(
   settings: TelemetrySettings,
   dependencies: TelemetryDependencies = {},
@@ -914,6 +1128,7 @@ export function createCommandTelemetry(
   const writeStderr =
     dependencies.stderr ?? ((payload: string) => process.stderr.write(`${payload}\n`));
   const webAppURL = dependencies.webAppURL ?? getWebAppURL;
+  const resolveFacets = dependencies.facets ?? consumeCommandFacets;
   const runtime = resolveRuntime(dependencies, env);
   const debug = env.DOSU_TELEMETRY_DEBUG === "1";
   const disabled =
@@ -966,6 +1181,15 @@ export function createCommandTelemetry(
   ): Promise<void> {
     try {
       const tasks: Promise<unknown>[] = [];
+      // Resolved once: the store is consumed, and both destinations describe the same command.
+      let facets: CommandFacets | undefined;
+      if (!disabled) {
+        try {
+          facets = resolveFacets();
+        } catch {
+          facets = undefined;
+        }
+      }
       if (!disabled && analyticsToken) {
         const id = context.user?.id ?? installId();
         if (id) {
@@ -977,6 +1201,7 @@ export function createCommandTelemetry(
             durationMs: safeNow(now) - startedAt,
             exitCode,
             errorCode: error?.code,
+            ...(facets ? { facets } : {}),
             context,
             runtime,
           });
@@ -1002,7 +1227,16 @@ export function createCommandTelemetry(
         }
       }
 
-      if (!disabled && result === "failure" && error && shouldSendToSentry(error) && sentryDsn) {
+      // Background study runs (hook and setup-bootstrap `--quiet` syncs) exit 0 by contract, so a
+      // failed run there is reported as its own message-free event; the command result and exit
+      // code stay untouched. Clean refusals and backoff skips are not failures.
+      const sentryError =
+        result === "failure" && error && shouldSendToSentry(error)
+          ? error
+          : result === "success" && sanitizeFacets(facets).sync_status === "mine-failed"
+            ? ({ type: "LearnerRunFailed", frames: [] } satisfies SafeError)
+            : undefined;
+      if (!disabled && sentryError && sentryDsn) {
         const id = eventId(generateUuid);
         const envelope = id
           ? buildSentryEnvelope({
@@ -1010,7 +1244,8 @@ export function createCommandTelemetry(
               command,
               context,
               runtime,
-              error,
+              error: sentryError,
+              ...(facets ? { facets } : {}),
               eventId: id,
               timestampMs: safeNow(now),
               debugId: BUNDLE_DEBUG_ID_PLACEHOLDER,
